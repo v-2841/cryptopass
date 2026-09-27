@@ -738,7 +738,7 @@ def strength_label(bits):
 class UI:
     """Drawing helpers and key names on top of a curses window."""
 
-    MIN_WIDTH = 70
+    MIN_WIDTH = 72
     MIN_HEIGHT = 22
 
     def __init__(self, scr):
@@ -890,8 +890,7 @@ def enter_words(ui, cells):
     columns = grid_columns(count)
     current = next((i for i, w in enumerate(cells) if w not in INDEX), 0)
     choice, picked, hidden, note = 0, False, False, None
-    hints = ('Space accept · Tab pick · ↑↓ choose · ←→ move · F2 hide · '
-             'Esc back')
+    hints = 'Enter take word · ↑↓ choose · ←→ move · F2 hide · Esc back'
     while True:
         text = cells[current]
         matches = lookup(text) if text else []
@@ -941,16 +940,18 @@ def enter_words(ui, cells):
             step = 1 if key == 'down' else -1
             choice = (choice + step) % len(options)
             picked = True
-        elif key == 'tab' and options:
+        elif key in ('enter', 'tab') and options:
             accept = options[choice]
-        elif key in (' ', 'enter') and text:
+        elif key == ' ' and text:
+            # Space separates typed or pasted words, so it only accepts a
+            # word that is typed in full or is the only match.
             if text in INDEX and not picked:
                 accept = text
             elif len(matches) == 1 or picked:
                 accept = options[choice]
             else:
                 note = (f'{len(matches)} words start with "{text}": keep '
-                        'typing or press Tab.', 'warn')
+                        'typing or press Enter.', 'warn')
         elif key == 'enter':
             missing = [i for i, w in enumerate(cells) if w not in INDEX]
             if not missing:
@@ -1229,7 +1230,8 @@ def result_screen(ui, code):
                              f'({len(code)} characters):']) + 1
             y = draw_code(ui, y, code, style='title') + 1
             y = ui.lines(y, [
-                'Case does not matter; 0/O and 1/I/L are read the same.',
+                'The code has no letters O, I or L: typing them counts as '
+                '0 or 1.',
                 f'Write "cryptopass" and {REPO_URL} next to it.',
                 'Keep the password somewhere else. Nobody can recover it.'])
             ui.put(y + 1, 4, *note)

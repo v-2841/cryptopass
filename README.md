@@ -53,10 +53,10 @@ The main menu has three modes: **Encrypt**, **Decrypt** and **Help**.
 1. Choose the number of words: 12, 15, 18, 21 or 24.
 2. Type the words. Suggestions appear as you type, and only BIP39 words can
    be entered.
-   - **Space** or **Enter** accepts a word once it is complete or is the
-     only match.
-   - **Tab** takes the highlighted suggestion, and **↑ ↓** choose another
-     one.
+   - **Enter** (or **Tab**) takes the highlighted suggestion, and **↑ ↓**
+     choose another one.
+   - **Space** accepts a word once it is typed in full or is the only
+     match, so you can also just type the words with spaces between them.
    - **← →** move between words, and **F2** hides the words on screen.
    - You can paste the whole phrase, including a numbered list.
 
@@ -69,9 +69,9 @@ The main menu has three modes: **Encrypt**, **Decrypt** and **Help**.
 
 ### Decrypt
 
-1. Type the code. Case, dashes and spaces do not matter, and the letters O,
-   I and L are read as 0, 1 and 1. If you made a typo, cryptopass usually
-   shows where it is and what the right character is.
+1. Type the code. Case, dashes and spaces do not matter. The code has no
+   letters O, I or L: typing them counts as 0 or 1. If you made a typo,
+   cryptopass usually shows where it is and what the right character is.
 2. Enter the password. A wrong password or a damaged code is reported, and
    no phrase is shown in that case.
 3. Press **Space** to show the words.
