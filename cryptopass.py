@@ -472,7 +472,7 @@ def code_lines(code):
             for i in range(0, len(groups), LINE_GROUPS)]
 
 
-# QR code (alphanumeric mode, error correction level L) -------------------
+# QR code (alphanumeric or byte mode, error correction level L) -----------
 
 QR_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:'
 # version: (EC codewords per block, ((block count, data codewords), ...))
@@ -546,7 +546,11 @@ def _qr_capacity(version):
 
 
 def _qr_bits(text, version):
-    """Data bits of a single alphanumeric segment."""
+    """Data bits of one segment: alphanumeric if possible, else bytes."""
+    if any(char not in QR_CHARS for char in text):
+        data = text.encode('utf-8')
+        bits = ['0100', format(len(data), '08b' if version < 10 else '016b')]
+        return ''.join(bits + [format(byte, '08b') for byte in data])
     bits = ['0010', format(len(text), '09b' if version < 10 else '011b')]
     for i in range(0, len(text) - 1, 2):
         pair = 45 * QR_CHARS.index(text[i]) + QR_CHARS.index(text[i + 1])
@@ -630,7 +634,7 @@ def _qr_penalty(grid):
 
 
 def qr_matrix(text, mask=None):
-    """Encode text (QR alphanumeric characters) as a QR code, level L.
+    """Encode text as a QR code, error correction level L.
 
     Returns a list of rows of booleans, True for dark modules.
     """
@@ -1299,8 +1303,9 @@ def copy_screen(ui, code):
 
 
 def qr_screen(ui, code):
-    # The QR code holds the code with dashes, so a phone shows it in groups.
-    matrix = qr_matrix('-'.join(code_lines(code)))
+    # The QR code holds the code in lines of groups, as on paper, so a phone
+    # shows it that way and sees plain text rather than something to open.
+    matrix = qr_matrix('\n'.join(code_lines(code)))
     quiet = 2
     size = len(matrix) + 2 * quiet
 
@@ -1314,11 +1319,17 @@ def qr_screen(ui, code):
     lines = [''.join(blocks[dark(r, c) * 2 + dark(r + 1, c)]
                      for c in range(size)) for r in range(0, size, 2)]
     while True:
-        if ui.frame('Encrypt · QR code', 'Any key: back',
-                    (max(size + 2, 30), len(lines) + 2)):
-            height, width = ui.scr.getmaxyx()
-            top = 1 + (height - 2 - len(lines)) // 2
+        # No title bar here: a 24-word code needs 23 rows of an 80x24 screen.
+        ui.scr.erase()
+        height, width = ui.scr.getmaxyx()
+        if height < len(lines) + 1 or width < max(size, 30):
+            ui.put(0, 0, 'Please make the terminal at least '
+                   f'{max(size, 30)}x{len(lines) + 1}.', 'warn')
+        else:
+            top = (height - 1 - len(lines)) // 2
             ui.lines(top, lines, 'qr', (width - size) // 2)
+            ui.put(height - 1, 0, ' QR code · Any key: back'.ljust(width),
+                   'bar')
         if ui.key() != 'resize':
             return
 
