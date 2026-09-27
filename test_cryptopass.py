@@ -181,6 +181,13 @@ class CodeTest(unittest.TestCase):
                 cp.from_code(text)
             self.assertNotIsInstance(context.exception, cp.TypoError)
 
+    def test_code_lines(self):
+        lines = cp.code_lines(self.code)
+        self.assertEqual(lines[0], '-'.join(
+            self.code[i:i + 4] for i in range(0, 16, 4)))
+        self.assertEqual(cp.clean_code('\n'.join(lines)), self.code)
+        self.assertTrue(all(len(line) <= 19 for line in lines))
+
     def test_bad_characters(self):
         with self.assertRaises(cp.CodeError):
             cp.from_code(self.code[:10] + 'U' + self.code[11:])
@@ -189,28 +196,50 @@ class CodeTest(unittest.TestCase):
         self.assertEqual(cp.clean_char('o'), '0')
 
 
-@unittest.skipIf(segno is None, 'segno is not installed')
+def byte_aligned(text, version):
+    """True if the QR data ends exactly on a byte after the terminator."""
+    length = len(cp._qr_bits(text, version))
+    length += min(4, cp._qr_capacity(version) * 8 - length)
+    return length % 8 == 0
+
+
 class QrTest(unittest.TestCase):
 
+    @unittest.skipIf(segno is None, 'segno is not installed')
     def test_matches_segno(self):
-        samples = ['A', '01', 'HELLO WORLD', 'Z' * 150, '9' * 311]
-        samples += [cp.encrypt(random_phrase(n), 'pw', FAST)
-                    for n in cp.WORD_COUNTS]
+        samples = ['A', '01', 'HELLO WORLD', 'Z' * 150, '9' * 395]
+        samples += ['-'.join(cp.code_lines(
+            cp.encrypt(random_phrase(n), 'pw', FAST)))
+            for n in cp.WORD_COUNTS]
         for text in samples:
             for mask in range(8):
                 mine = cp.qr_matrix(text, mask)
                 version = (len(mine) - 17) // 4
-                ref = segno.make_qr(text, error='m', mask=mask,
+                if byte_aligned(text, version):
+                    # segno then adds a whole zero byte of padding, while
+                    # ISO 18004 adds none: see test_padding.
+                    continue
+                ref = segno.make_qr(text, error='l', mask=mask,
                                     version=version, mode='alphanumeric',
                                     boost_error=False)
                 self.assertEqual(ref.version, version)
                 ref_rows = [[bool(x) for x in row] for row in ref.matrix]
                 self.assertEqual(mine, ref_rows, (text, mask))
 
+    def test_padding(self):
+        # 119 characters: 668 data bits plus a 4-bit terminator make exactly
+        # 84 bytes, so the pad codewords follow at once.
+        text = 'A' * 119
+        self.assertTrue(byte_aligned(text, 5))
+        codewords = cp._qr_codewords(text, 5)
+        self.assertEqual(codewords[84:88], [0xEC, 0x11, 0xEC, 0x11])
+
     def test_code_versions(self):
+        # Fits an 80x24 terminal: at most version 5 (37 modules).
         for count in cp.WORD_COUNTS:
             code = cp.encrypt(random_phrase(count), 'pw', FAST)
-            self.assertLessEqual(len(cp.qr_matrix(code)), 37)
+            text = '-'.join(cp.code_lines(code))
+            self.assertLessEqual(len(cp.qr_matrix(text)), 37)
 
 
 if __name__ == '__main__':

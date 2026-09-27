@@ -64,7 +64,9 @@ The main menu has three modes: **Encrypt**, **Decrypt** and **Help**.
    after a warning.
 3. Enter the password twice and choose a protection level.
 4. Write the code down. Press **V** to type it back from your paper and check
-   the copy, or **Q** to show it as a QR code.
+   the copy. Press **C** to see the code without line numbers, ready to select
+   with the mouse and copy, or **Q** to show it as a QR code (a phone shows
+   it in the same dash-separated groups).
 
 ### Decrypt
 

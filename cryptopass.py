@@ -364,7 +364,7 @@ def clean_char(char):
     char = LOOKALIKES.get(char, char)
     if char in DIGITS:
         return char
-    if char in ' -':
+    if char == '-' or char.isspace():
         return ''
     return None
 
@@ -465,21 +465,28 @@ def code_place(pos):
             f'group {group % LINE_GROUPS + 1}')
 
 
-# QR code (alphanumeric mode, error correction level M) -------------------
+def code_lines(code):
+    """Split a code into lines of dash-separated groups, as on paper."""
+    groups = [code[i:i + GROUP] for i in range(0, len(code), GROUP)]
+    return ['-'.join(groups[i:i + LINE_GROUPS])
+            for i in range(0, len(groups), LINE_GROUPS)]
+
+
+# QR code (alphanumeric mode, error correction level L) -------------------
 
 QR_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:'
 # version: (EC codewords per block, ((block count, data codewords), ...))
 QR_BLOCKS = {
-    1: (10, ((1, 16),)),
-    2: (16, ((1, 28),)),
-    3: (26, ((1, 44),)),
-    4: (18, ((2, 32),)),
-    5: (24, ((2, 43),)),
-    6: (16, ((4, 27),)),
-    7: (18, ((4, 31),)),
-    8: (22, ((2, 38), (2, 39))),
-    9: (22, ((3, 36), (2, 37))),
-    10: (26, ((4, 43), (1, 44))),
+    1: (7, ((1, 19),)),
+    2: (10, ((1, 34),)),
+    3: (15, ((1, 55),)),
+    4: (20, ((1, 80),)),
+    5: (26, ((1, 108),)),
+    6: (18, ((2, 68),)),
+    7: (20, ((2, 78),)),
+    8: (24, ((2, 97),)),
+    9: (30, ((2, 116),)),
+    10: (18, ((2, 68), (2, 69))),
 }
 QR_ALIGN = {
     1: (), 2: (6, 18), 3: (6, 22), 4: (6, 26), 5: (6, 30), 6: (6, 34),
@@ -574,7 +581,7 @@ def _qr_codewords(text, version):
 
 
 def _qr_format_bits(put, size, mask):
-    data = mask  # level M is 0b00
+    data = 0b01 << 3 | mask  # level L
     rem = data
     for _ in range(10):
         rem = (rem << 1) ^ ((rem >> 9) * 0x537)
@@ -623,7 +630,7 @@ def _qr_penalty(grid):
 
 
 def qr_matrix(text, mask=None):
-    """Encode text (QR alphanumeric characters) as a QR code, level M.
+    """Encode text (QR alphanumeric characters) as a QR code, level L.
 
     Returns a list of rows of booleans, True for dark modules.
     """
@@ -837,6 +844,21 @@ class UI:
                 name = key
             if name:
                 return name
+
+    def pending(self):
+        """True if more input is already waiting (the rest of a paste)."""
+        self.scr.timeout(20)
+        try:
+            key = self.scr.get_wch()
+        except curses.error:
+            return False
+        finally:
+            self.scr.timeout(-1)
+        if isinstance(key, int):
+            curses.ungetch(key)
+        else:
+            curses.unget_wch(key)
+        return True
 
     def busy(self, lines):
         self.frame('working', 'Please wait…')
@@ -1084,8 +1106,8 @@ def draw_code(ui, y, code, total=None, cursor=None, marks=(), style='bold'):
     """Draw a code as numbered lines of groups; return the next row."""
     span = GROUP * LINE_GROUPS
     length = max(total or 0, len(code), 1)
-    if cursor is not None:
-        length = max(length, cursor + 1)
+    if cursor is not None and not (total and cursor >= total):
+        length = max(length, cursor + 1)  # room for the cursor
     rows = (length + span - 1) // span
     for row in range(rows):
         ui.put(y + row, 4, f'{row + 1:>2}', 'dim')
@@ -1171,6 +1193,8 @@ def code_screen(ui, code='', expected=None):
             note = (['Fixed. Press Enter to continue.'], 'ok')
             continue
         elif key == 'enter':
+            if ui.pending():
+                continue  # a line break inside a pasted code
             edited = False
             marks, fix = set(), None
             if expected is not None:
@@ -1225,7 +1249,7 @@ def result_screen(ui, code):
             'ok')
     while True:
         if ui.frame('Encrypt · your code',
-                    'V verify your copy · Q QR code · Enter done'):
+                    'V verify your copy · C copy · Q QR code · Enter done'):
             y = ui.lines(2, [f'Write this code down exactly '
                              f'({len(code)} characters):']) + 1
             y = draw_code(ui, y, code, style='title') + 1
@@ -1243,6 +1267,9 @@ def result_screen(ui, code):
             if code_screen(ui, expected=code) is not None:
                 verified = True
                 note = ('✓ Your written copy matches the code.', 'ok')
+        elif key in ('c', 'C'):
+            leaving = False
+            copy_screen(ui, code)
         elif key in ('q', 'Q'):
             leaving = False
             qr_screen(ui, code)
@@ -1254,8 +1281,26 @@ def result_screen(ui, code):
                     'again to leave.', 'warn')
 
 
+def copy_screen(ui, code):
+    """Show the bare code, easy to select with the mouse and copy."""
+    while True:
+        if ui.frame('Encrypt · copy the code', 'Any key: back'):
+            y = ui.lines(2, [
+                'Select the code below with the mouse and copy it with '
+                'your',
+                'terminal (often Ctrl+Shift+C or right click, then Copy).'])
+            y = ui.lines(y + 1, code_lines(code), 'title', 0) + 1
+            ui.lines(y, [
+                'Line breaks and dashes are fine: cryptopass ignores them '
+                'when',
+                'you paste the code back in.'], 'dim')
+        if ui.key() != 'resize':
+            return
+
+
 def qr_screen(ui, code):
-    matrix = qr_matrix(code)
+    # The QR code holds the code with dashes, so a phone shows it in groups.
+    matrix = qr_matrix('-'.join(code_lines(code)))
     quiet = 2
     size = len(matrix) + 2 * quiet
 
