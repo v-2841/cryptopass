@@ -208,8 +208,7 @@ class QrTest(unittest.TestCase):
     @unittest.skipIf(segno is None, 'segno is not installed')
     def test_matches_segno(self):
         samples = ['A', '01', 'HELLO WORLD', 'Z' * 150, '9' * 395]
-        samples += ['caf\u00e9', 'line one\nline two', 'x' * 200]
-        samples += ['\n'.join(cp.code_lines(
+        samples += ['-'.join(cp.code_lines(
             cp.encrypt(random_phrase(n), 'pw', FAST)))
             for n in cp.WORD_COUNTS]
         for text in samples:
@@ -220,11 +219,9 @@ class QrTest(unittest.TestCase):
                     # segno then adds a whole zero byte of padding, while
                     # ISO 18004 adds none: see test_padding.
                     continue
-                mode = 'alphanumeric' if all(
-                    char in cp.QR_CHARS for char in text) else 'byte'
                 ref = segno.make_qr(text, error='l', mask=mask,
-                                    version=version, mode=mode,
-                                    encoding='utf-8', boost_error=False)
+                                    version=version, mode='alphanumeric',
+                                    boost_error=False)
                 self.assertEqual(ref.version, version)
                 ref_rows = [[bool(x) for x in row] for row in ref.matrix]
                 self.assertEqual(mine, ref_rows, (text, mask))
@@ -238,11 +235,11 @@ class QrTest(unittest.TestCase):
         self.assertEqual(codewords[84:88], [0xEC, 0x11, 0xEC, 0x11])
 
     def test_code_versions(self):
-        # Fits an 80x24 terminal: at most version 6 (41 modules).
+        # Fits an 80x24 terminal: at most version 5 (37 modules).
         for count in cp.WORD_COUNTS:
             code = cp.encrypt(random_phrase(count), 'pw', FAST)
-            text = '\n'.join(cp.code_lines(code))
-            self.assertLessEqual(len(cp.qr_matrix(text)), 41)
+            text = '-'.join(cp.code_lines(code))
+            self.assertLessEqual(len(cp.qr_matrix(text)), 37)
 
 
 if __name__ == '__main__':

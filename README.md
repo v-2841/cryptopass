@@ -66,7 +66,7 @@ The main menu has three modes: **Encrypt**, **Decrypt** and **Help**.
 4. Write the code down. Press **V** to type it back from your paper and check
    the copy. Press **C** to see the code without line numbers, ready to select
    with the mouse and copy, or **Q** to show it as a QR code (a phone shows
-   it as plain text, line by line, as on paper).
+   it in the same dash-separated groups).
 
 ### Decrypt
 
