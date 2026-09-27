@@ -25,13 +25,12 @@ curl -fsSL https://raw.githubusercontent.com/v-2841/cryptopass/main/cryptopass.p
 The app reads the keyboard straight from the terminal, so piping the script
 into Python works.
 
-A safer way is to download the file, check it, and then run it. Use a
-release tag instead of `main`, and compare the hash with the one published
-for that release:
+A safer way is to download the file, look through it, and then run your
+local copy:
 
 ```sh
-curl -fsSLO https://raw.githubusercontent.com/v-2841/cryptopass/v1.0.0/cryptopass.py
-sha256sum cryptopass.py        # on macOS: shasum -a 256 cryptopass.py
+curl -fsSLO https://raw.githubusercontent.com/v-2841/cryptopass/main/cryptopass.py
+less cryptopass.py
 python3 cryptopass.py
 ```
 
@@ -88,8 +87,8 @@ The main menu has three modes: **Encrypt**, **Decrypt** and **Help**.
   internet before typing a real seed phrase. The app never uses the network
   and never writes to disk. For the most protection, run it from a live
   system such as [Tails](https://tails.net).
-- **Check what you run.** Use a release tag in the URL and check the file's
-  SHA-256.
+- **Check what you run.** The app is a single readable file: download it,
+  look through it, and run your local copy.
 - **Store the code and the password in different places.** Write
   "cryptopass" and the project URL next to the code, so that you or your
   heirs know how to decrypt it.
