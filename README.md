@@ -12,7 +12,7 @@ password to get the phrase back.
   memory, so every password guess is expensive. A wrong password is always
   detected.
 - The format is small and open. You can decrypt a code without this app
-  using about 25 lines of Python (see below).
+  using about 30 lines of Python (see below).
 
 ## Run
 
@@ -149,8 +149,11 @@ The protection levels are Standard (`N = 2^18`, 256 MiB of memory), Strong
 
 ### Decrypting without cryptopass
 
-You need Python 3 and the BIP39 English word list
-([english.txt](https://github.com/bitcoin/bips/blob/master/bip-0039/english.txt)):
+You need Python 3 and the BIP39 English word list,
+[english.txt](https://github.com/bitcoin/bips/blob/ce1862ac6bcffa1dd20aad858380e51e66e949ea/bip-0039/english.txt).
+The list has not changed since 2014, and the same list is built into
+`cryptopass.py` (the `WORDS` constant). The script below checks the file's
+SHA-256, so a wrong or damaged list cannot give you wrong words.
 
 ```python
 import getpass
@@ -160,7 +163,11 @@ import unicodedata
 
 code = input('Code: ')
 password = getpass.getpass('Password: ')
-words = open('english.txt').read().split()
+wordlist = open('english.txt', 'rb').read().replace(b'\r\n', b'\n')
+assert hashlib.sha256(wordlist).hexdigest() == (
+    '2f5eed53a4727b4bf8880d8f3f199efc90e58503646d9ff8eff3a2ed3b24dbda'
+), 'this is not the BIP39 English word list'
+words = wordlist.decode().split()
 
 alphabet = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 code = code.upper().replace('-', '').replace(' ', '')
