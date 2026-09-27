@@ -1429,9 +1429,7 @@ def app(scr):
     while True:
         index = choose(ui, f'version {APP_VERSION}', [
             'Encrypt a seed phrase with a password and get a code that is',
-            'safe to write down. Decrypt the code to get the phrase back.',
-            '',
-            'Tip: disconnect from the internet before typing a real seed.'],
+            'safe to write down. Decrypt the code to get the phrase back.'],
             ['Encrypt a seed phrase      E', 'Decrypt a code             D',
              'Help and safety tips       H', 'Quit                       Q'],
             index or 0, 'edhq')
