@@ -5,7 +5,7 @@
 # ///
 # Copyright (c) 2026 Vitaliy Pavlov
 # SPDX-License-Identifier: MIT
-"""cryptopass: encrypt a BIP39 seed phrase with a password.
+"""cryptopass: encrypt a wallet seed phrase with a password.
 
 A single-file terminal app built only on the Python standard library.
 It turns a seed phrase into a code that is easy to write down on paper,
@@ -278,6 +278,24 @@ def bip39_valid(words):
     entropy = (bits >> check_bits).to_bytes(count * 4 // 3, 'big')
     digest = hashlib.sha256(entropy).digest()[0]
     return (digest >> (8 - check_bits)) == (bits & ((1 << check_bits) - 1))
+
+
+def phrase_kind(words):
+    """Name the wallet format whose checksum the words pass, or None.
+
+    TON phrases use the BIP39 word list, but have their own checksum
+    instead of the BIP39 one.
+    """
+    if bip39_valid(words):
+        return 'BIP39'
+    if len(words) != 24 or any(w not in INDEX for w in words):
+        return None
+    # TON (tonlib Mnemonic::is_basic_seed), always 24 words.
+    entropy = hmac.new(' '.join(words).encode(), b'', 'sha512').digest()
+    if hashlib.pbkdf2_hmac('sha512', entropy, b'TON seed version',
+                           390)[0] == 0:
+        return 'TON'
+    return None
 
 
 # Encryption --------------------------------------------------------------
@@ -1009,11 +1027,12 @@ def enter_words(ui, cells):
             current = min(current + 1, count - 1)
 
 
-def password_screen(ui, title, confirm, note=None):
+def password_screen(ui, title, confirm, note=None, info=None):
     """Ask for a password; return (password, level index) or None.
 
     With confirm the password is typed twice and a protection level is
-    chosen, which is what encryption needs.
+    chosen, which is what encryption needs. info is a (text, style) line
+    shown above the fields.
     """
     fields = [[], []] if confirm else [[]]
     stops = 3 if confirm else 1
@@ -1032,6 +1051,9 @@ def password_screen(ui, title, confirm, note=None):
             else:
                 intro = ['Enter the password that was used for this code.']
             y = ui.lines(2, intro) + 1
+            if info:
+                ui.put(y, 4, *info)
+                y += 2
             for i, chars in enumerate(fields):
                 ui.put(y, 4, ('Password', 'Repeat')[i],
                        'bold' if focus == i else None)
@@ -1325,18 +1347,18 @@ def qr_screen(ui, code):
 
 def words_screen(ui, words):
     shown = False
-    valid = bip39_valid(words)
+    kind = phrase_kind(words)
     while True:
         if ui.frame('Decrypt · your seed phrase', 'Space show/hide · '
                     'Enter done'):
             y = ui.lines(2, ['The code was decrypted. Press Space to show '
                              'the words.']) + 1
             y = draw_words(ui, y, words, not shown) + 1
-            if valid:
-                ui.put(y, 4, '✓ The BIP39 checksum is valid.', 'ok')
+            if kind:
+                ui.put(y, 4, f'✓ {kind} phrase: its checksum is valid.', 'ok')
             else:
-                ui.put(y, 4, '! Not a BIP39 phrase; it was encrypted as is.',
-                       'warn')
+                ui.put(y, 4, '! The phrase matches no known checksum; it was '
+                       'encrypted as is.', 'warn')
         key = ui.key()
         if key == ' ':
             shown = not shown
@@ -1364,7 +1386,7 @@ def run_scrypt(ui, lines, action):
 
 
 def encrypt_flow(ui):
-    count_index, cells, step = 0, None, 'count'
+    count_index, cells, step, info = 0, None, 'count', None
     while True:
         if step == 'count':
             index = choose(
@@ -1381,22 +1403,30 @@ def encrypt_flow(ui):
         elif step == 'words':
             if not enter_words(ui, cells):
                 step = 'count'
-            elif bip39_valid(cells) or choose(
+                continue
+            kind = phrase_kind(cells)
+            if kind:
+                info = (f'✓ {kind} phrase: its checksum is valid.', 'ok')
+                step = 'password'
+            elif choose(
                     ui, 'Encrypt · checksum', [
-                        'These words do not pass the BIP39 checksum, so '
-                        'most likely',
-                        'one of them is wrong. Please check them again.',
+                        'These words pass no known checksum (BIP39 or TON), '
+                        'so most',
+                        'likely one of them is wrong. Please check them '
+                        'again.',
                         '',
-                        'Some wallets (Electrum, for example) use phrases '
-                        'without a',
-                        'BIP39 checksum. Such a phrase can be encrypted '
-                        'as is.'],
+                        'If your wallet uses another format, the phrase can '
+                        'still be',
+                        'encrypted as is.'],
                     ['Edit the words', 'Encrypt it anyway']) == 1:
+                info = ('! The phrase matches no known checksum; it will be '
+                        'encrypted as is.', 'warn')
                 step = 'password'
         elif step == 'password':
             note = None
             while True:
-                answer = password_screen(ui, 'Encrypt · password', True, note)
+                answer = password_screen(ui, 'Encrypt · password', True, note,
+                                         info)
                 if answer is None:
                     step = 'words'
                     break
@@ -1455,10 +1485,10 @@ def decrypt_flow(ui):
 
 
 HELP = [
-    'cryptopass encrypts a BIP39 seed phrase with your password and',
-    'gives you a code (letters and digits) to write down. The code and',
-    'the password together restore the phrase: here, or with the short',
-    'script in the README.',
+    'cryptopass encrypts a wallet seed phrase (BIP39 or TON) with your',
+    'password and gives you a code (letters and digits) to write down.',
+    'The code and the password together restore the phrase: here, or',
+    'with the short script in the README.',
     '',
     '• Run it offline: disconnect from the internet before typing a real',
     '  seed phrase. Nothing is saved to disk or sent anywhere.',

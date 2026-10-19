@@ -22,6 +22,12 @@ VECTORS = [
     'path output census museum junior mass reopen famous sing advance salt '
     'reform',
 ]
+# A TON wallet phrase made by tonsdk.crypto.mnemonic_new() and checked
+# with tonsdk.crypto.mnemonic_is_valid(). It fails the BIP39 checksum.
+TON_PHRASE = (
+    'exhaust elephant silly price drive peanut rare bid world degree '
+    'present turn matter assault taxi glow survey push swear drop range '
+    'rich rhythm melody')
 FAST = 10  # log2 of scrypt N, small to keep the tests quick
 
 
@@ -63,6 +69,24 @@ class Bip39Test(unittest.TestCase):
         self.assertEqual(cp.lookup('zoo'), ['zoo'])
         self.assertEqual(cp.lookup('zz'), [])
         self.assertEqual(len(cp.lookup('')), 2048)
+
+
+class PhraseKindTest(unittest.TestCase):
+
+    def test_bip39(self):
+        for phrase in VECTORS:
+            self.assertEqual(cp.phrase_kind(phrase.split()), 'BIP39')
+
+    def test_ton(self):
+        words = TON_PHRASE.split()
+        self.assertFalse(cp.bip39_valid(words))
+        self.assertEqual(cp.phrase_kind(words), 'TON')
+        words[0] = 'abandon'
+        self.assertIsNone(cp.phrase_kind(words))
+
+    def test_unknown(self):
+        self.assertIsNone(cp.phrase_kind(['zoo'] * 12))
+        self.assertIsNone(cp.phrase_kind(['zoo'] * 24))
 
 
 class CryptoTest(unittest.TestCase):

@@ -1,8 +1,8 @@
 # cryptopass
 
-Encrypt a crypto wallet seed phrase (BIP39) with a password and get a short
-code that you can write down on paper. Later, decrypt the code with the same
-password to get the phrase back.
+Encrypt a crypto wallet seed phrase (BIP39 or TON) with a password and get a
+short code that you can write down on paper. Later, decrypt the code with the
+same password to get the phrase back.
 
 - One Python file, standard library only: nothing to install.
 - Runs in the terminal. You type the words one by one with autocomplete from
@@ -59,9 +59,10 @@ The main menu has three modes: **Encrypt**, **Decrypt** and **Help**.
    - **← →** move between words, and **F2** hides the words on screen.
    - You can paste the whole phrase, including a numbered list.
 
-   When all words are entered, the BIP39 checksum is checked. Phrases that
-   have no BIP39 checksum (Electrum, for example) can still be encrypted
-   after a warning.
+   When all words are entered, cryptopass checks the phrase's checksum and
+   names the format: BIP39, or TON (TON wallets use the same word list with
+   their own checksum). A phrase that passes neither, for example from
+   another wallet format, can still be encrypted after a warning.
 3. Enter the password twice and choose a protection level.
 4. Write the code down. Press **V** to type it back from your paper and check
    the copy. Press **C** to see the code without line numbers, ready to select
