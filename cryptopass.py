@@ -29,7 +29,7 @@ try:
 except ImportError:  # Windows without the windows-curses package
     curses = None
 
-APP_VERSION = '1.0.0'
+APP_VERSION = '1.1.0'
 REPO_URL = 'github.com/v-2841/cryptopass'
 RUN_WITH_UV = ('uv run https://raw.githubusercontent.com/v-2841/cryptopass/'
                'main/cryptopass.py')
